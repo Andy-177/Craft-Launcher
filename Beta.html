@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>EaglercraftX 启动器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #launch-btn {
+            width: 320px;
+            height: 240px;
+            background: #e0e0e0;
+            border: none;
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+        #launch-btn:hover {
+            transform: scale(1.02);
+            background: #d5d5d5;
+        }
+        #launch-btn::before {
+            content: '';
+            position: absolute;
+            width: 60px;
+            height: 12px;
+            background: #ffffff;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        #launch-btn::after {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 60px;
+            background: #ffffff;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .status-message {
+            position: absolute;
+            color: #666666;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <input type="file" id="core-file" accept=".js" style="display: none;">
+    <button id="launch-btn"></button>
+    <div class="status-message" id="status"></div>
+
+    <script>
+        const launchBtn = document.getElementById('launch-btn');
+        const fileInput = document.getElementById('core-file');
+        const statusDisplay = document.getElementById('status');
+
+        launchBtn.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                const file = e.target.files[0];
+                statusDisplay.textContent = '正在准备游戏...';
+                statusDisplay.style.display = 'block';
+                launchBtn.disabled = true;
+                
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    // 读取游戏核心内容
+                    const coreContent = event.target.result;
+                    
+                    // 创建新窗口
+                    const gameWindow = window.open('', '_blank');
+                    if (!gameWindow) {
+                        alert('请允许弹出窗口');
+                        resetUI();
+                        return;
+                    }
+
+                    // 向新窗口写入完整HTML（完全复刻原代码环境）
+                    gameWindow.document.write(`
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <meta charset="UTF-8">
+                            <title>EaglercraftX 游戏</title>
+                            <style>
+                                * { margin: 0; padding: 0; box-sizing: border-box; }
+                                html, body {
+                                    width: 100%;
+                                    height: 100%;
+                                    overflow: hidden;
+                                }
+                                #game-container {
+                                    width: 100vw;
+                                    height: 100vh;
+                                    display: block;
+                                }
+                                .status-message {
+                                    position: absolute;
+                                    color: #666666;
+                                    font-family: Arial, sans-serif;
+                                    font-size: 14px;
+                                    top: 50%;
+                                    left: 50%;
+                                    transform: translate(-50%, -50%);
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="status-message" id="status">正在初始化游戏...</div>
+                            <div id="game-container"></div>
+
+                            <script>
+                                // 1. 定义游戏配置（与原代码一致）
+                                window.eaglercraftXOpts = {
+                                    container: "game-container",
+                                    worldsDB: "eagler_worlds",
+                                    enableSound: true
+                                };
+
+                                // 2. 获取DOM元素（与原代码一致）
+                                const gameContainer = document.getElementById('game-container');
+                                const statusDisplay = document.getElementById('status');
+
+                                // 3. 重写选择器（核心修复！与原代码完全一致）
+                                function overrideSelectors() {
+                                    const originalQ = document.querySelector;
+                                    const originalG = document.getElementById;
+                                    
+                                    document.querySelector = function(selector) {
+                                        return document.getElementById('game-container') || document.body;
+                                    };
+                                    
+                                    document.getElementById = function(id) {
+                                        return id === 'game-container' ? gameContainer : document.body;
+                                    };
+                                }
+
+                                // 4. 执行重写
+                                overrideSelectors();
+
+                                // 5. 注入游戏核心代码
+                                (function() {
+                                    ${coreContent}
+                                })();
+
+                                // 6. 初始化游戏（与原代码一致）
+                                if (window.initEaglercraftX) {
+                                    try {
+                                        window.initEaglercraftX({
+                                            ...window.eaglercraftXOpts,
+                                            container: gameContainer,
+                                            width: window.innerWidth,
+                                            height: window.innerHeight
+                                        });
+
+                                        // 窗口大小调整
+                                        window.addEventListener('resize', () => {
+                                            if (window.eaglercraftX && window.eaglercraftX.resize) {
+                                                window.eaglercraftX.resize(window.innerWidth, window.innerHeight);
+                                            }
+                                        });
+
+                                        statusDisplay.style.display = 'none';
+                                    } catch (err) {
+                                        statusDisplay.textContent = '初始化失败: ' + err.message;
+                                        console.error(err);
+                                    }
+                                } else {
+                                    statusDisplay.textContent = '未找到初始化函数';
+                                }
+                            <\/script>
+                        </body>
+                        </html>
+                    `);
+                    gameWindow.document.close();
+
+                    // 更新当前页面状态
+                    statusDisplay.textContent = '游戏已在新窗口启动';
+                    setTimeout(resetUI, 2000);
+                };
+
+                reader.onerror = function() {
+                    alert('文件读取错误: ' + reader.error.message);
+                    resetUI();
+                };
+
+                reader.readAsText(file);
+            }
+        });
+
+        function resetUI() {
+            statusDisplay.style.display = 'none';
+            fileInput.value = '';
+            launchBtn.disabled = false;
+        }
+    </script>
+</body>
+</html>
