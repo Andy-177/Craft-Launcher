@@ -1,2 +1,2 @@
-# Horizon-Launcher
+# Craft-Launcher
 eaglercraft启动器
